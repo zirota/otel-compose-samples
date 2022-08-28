@@ -1,0 +1,50 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+
+processors:
+  batch:
+
+exporters:
+  otlp:
+    endpoint: otelcol:4317
+  influxdb:
+    endpoint: http://influxdb:8086
+    timeout: 500ms
+    # Enter your influxdb bucket details
+    org: 
+    bucket: 
+    token: 
+    metrics_schema: telegraf-prometheus-v2
+    sending_queue:
+      enabled: true
+      num_consumers: 3
+      queue_size: 10
+    retry_on_failure:
+      enabled: true
+      initial_interval: 1s
+      max_interval: 3s
+      max_elapsed_time: 10s
+
+extensions:
+  health_check:
+  pprof:
+  zpages:
+
+service:
+  extensions: [health_check,pprof,zpages]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp, influxdb]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp]

@@ -1,0 +1,7 @@
+certs
+ssl
+*.log
+.env
+*.zip
+*.tar.gz
+config.yaml

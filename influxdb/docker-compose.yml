@@ -1,0 +1,74 @@
+version: '3'
+services:
+  influxdb:
+    image: influxdb:${INFLUXDB_VERSION}
+    container_name: influxdb-${INFLUXDB_VERSION}
+    volumes:
+      # Mount for influxdb data directory and configuration
+      - influxdb2:/var/lib/influxdb2:rw
+    ports:
+      - "8086:8086"
+  # Use the influx cli to set up an influxdb instance. 
+  influxdb_cli:
+    links:
+      - influxdb
+    image: influxdb:${INFLUXDB_VERSION}
+    container_name: influxdb-cli-${INFLUXDB_VERSION}
+    volumes:
+      # Mount for influxdb data directory and configuration
+      - influxdb2:/var/lib/influxdb2:rw
+      - ./ssl:/etc/ssl:rw
+    environment: 
+       # Use these same configurations parameters in your telegraf configuration, mytelegraf.conf.
+      - DOCKER_INFLUXDB_INIT_MODE=${DOCKER_INFLUXDB_INIT_MODE}
+      - DOCKER_INFLUXDB_INIT_USERNAME=${DOCKER_INFLUXDB_INIT_USERNAME}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${DOCKER_INFLUXDB_INIT_PASSWORD}
+      - DOCKER_INFLUXDB_INIT_ORG=${DOCKER_INFLUXDB_INIT_ORG}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${DOCKER_INFLUXDB_INIT_BUCKET}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${DOCKER_INFLUXDB_INIT_ADMIN_TOKEN}
+      - INFLUXD_TLS_CERT=/etc/ssl/influxdb-selfsigned.crt
+      - INFLUXD_TLS_KEY=/etc/ssl/influxdb-selfsigned.key
+    entrypoint: ["./entrypoint.sh"]
+    restart: on-failure:10
+    depends_on:
+      - influxdb
+  telegraf:
+    image: telegraf
+    container_name: telegraf
+    links:
+      - influxdb
+    volumes:
+      # Mount for telegraf config
+      - ./telegraf:/etc/telegraf:rw
+    env_file:
+      - ./.env
+    # environment: 
+    #   - DOCKER_INFLUXDB_INIT_ORG=myorg
+    #   - DOCKER_INFLUXDB_INIT_BUCKET=mybucket
+    #   - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=mytoken
+    depends_on:
+      - influxdb_cli
+  otelcol:
+    image: otel/opentelemetry-collector-contrib:${OTEL_VERSION}
+    container_name: otelcol-contrib-${OTEL_VERSION}
+    volumes:
+      # Mount for telegraf config
+      - ./otel:/etc/otelcol:rw
+    env_file:
+      - ./.env
+    # environment: 
+    #   - DOCKER_INFLUXDB_INIT_ORG=myorg
+    #   - DOCKER_INFLUXDB_INIT_BUCKET=mybucket
+    #   - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=mytoken
+    depends_on:
+      - influxdb_cli
+    ports:
+      - "1888:1888"   # pprof extension
+      - "8888:8888"   # Prometheus metrics exposed by the collector
+      - "8889:8889"   # Prometheus exporter metrics
+      - "13133:13133" # health_check extension
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP http receiver
+      - "55679:55679" # zpages extension
+volumes:
+  influxdb2:

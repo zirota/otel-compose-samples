@@ -1,0 +1,7 @@
+version: "3.0"
+services:
+  package-registry:
+    container_name: package-registry
+    image: docker.elastic.co/package-registry/distribution:production
+    ports:
+      - 8080:8080
