@@ -122,6 +122,43 @@ services:
       interval: 10s
       timeout: 10s
       retries: 120
+  apm-server:
+    container_name: apm-container
+    image: docker.elastic.co/apm/apm-server:${STACK_VERSION}
+    volumes:
+      - certs:/usr/share/apm-server/config/certs
+    networks:
+      - es-net
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    cap_add: ["CHOWN", "DAC_OVERRIDE", "SETGID", "SETUID"]
+    cap_drop: ["ALL"]
+    ports:
+      - ${APM_PORT}:8200
+    command: >
+      apm-server -e
+        -E logging.level=debug
+        -E apm-server.rum.enabled=true
+        -E setup.kibana.host=kibana:5601
+        -E setup.template.settings.index.number_of_replicas=0
+        -E apm-server.host=0.0.0.0:8200
+        -E apm-server.kibana.enabled=true
+        -E apm-server.kibana.host=kibana:5601
+        -E apm-server.kibana.username=elastic
+        -E apm-server.kibana.password=${ELASTIC_PASSWORD}
+        -E output.elasticsearch.hosts=["https://es-container:9200"]
+        -E output.elasticsearch.username=elastic
+        -E output.elasticsearch.password=${ELASTIC_PASSWORD}
+        -E output.elasticsearch.ssl.certificate_authorities=["config/certs/ca/ca.crt"]
+        -E output.elasticsearch.ssl.certificate=/usr/share/apm-server/config/certs/es-container/es-container.crt
+        -E output.elasticsearch.ssl.key=/usr/share/apm-server/config/certs/es-container/es-container.key
+    healthcheck:
+      interval: 10s
+      retries: 12
+      test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null http://localhost:8200/
 networks:
   es-net:
     driver: bridge
