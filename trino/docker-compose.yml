@@ -1,0 +1,15 @@
+version: '3.7'
+services:
+  trino-coordinator:
+    image: 'trinodb/trino:latest'
+    hostname: trino-coordinator
+    ports:
+      - '8080:8080'
+    volumes:
+      - ./etc:/etc/trino
+      - ./opt:/opt/trino
+    networks:
+      - elk8_es-net
+networks:
+  elk8_es-net:
+    external: true
